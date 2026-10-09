@@ -75,6 +75,48 @@ main{padding-bottom:96px}
 <div id="v"></div>
 </main><nav id="bar" aria-label="Navigation"></nav><div id="pres" aria-label="Connectés"></div>
 <script>
+window.fbReady=new Promise(r=>{window.__fbOk=r});
+window.dlSave=(name,data)=>{const csv=name.endsWith('.csv'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv?'\ufeff'+data:data],{type:csv?'text/csv;charset=utf-8':'application/json'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)};
+window.fbWarn=m=>{let e=document.getElementById('fberr');if(!e){e=document.createElement('div');e.id='fberr';e.style.cssText='position:fixed;left:8px;right:8px;top:8px;z-index:99;background:#b42318;color:#fff;padding:10px 14px;border-radius:10px;font:600 14px system-ui,sans-serif';document.body.appendChild(e)}e.textContent='⚠️ '+m};
+</script>
+<script type="module">
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {initializeFirestore,doc,collection,setDoc,deleteDoc,getDocs,onSnapshot} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+/* ====== CONFIG FIREBASE ======
+   Remplace apiKey par celle de ton projet :
+   Console Firebase > Paramètres du projet (⚙️) > Général > Vos applications > Application Web > "Configuration du SDK".
+   Cette clé web n'est pas secrète (elle est visible dans toute appli web Firebase). */
+const firebaseConfig={
+  apiKey:'AIzaSyA8Y0NgbDkp3JnAtgtwlvNQ-mpvc2DlfR8',
+  authDomain:'papayoo-f3e2b.firebaseapp.com',
+  projectId:'papayoo-f3e2b'
+};
+
+try{
+  if(!firebaseConfig.apiKey||firebaseConfig.apiKey==='VOTRE_API_KEY')throw {code:'config',message:'Clé API Firebase manquante : ouvre index.html et remplace VOTRE_API_KEY (voir les instructions).'};
+  const app=initializeApp(firebaseConfig);
+  const store=initializeFirestore(app,{experimentalAutoDetectLongPolling:true});
+  const clean=d=>JSON.parse(JSON.stringify(d));
+  const fail=e=>{console.error('Firestore',e);if(e&&e.code==='permission-denied')fbWarn('Firestore refuse l\'accès (permission-denied) : vérifie les règles Firestore.');else fbWarn('Firebase : '+((e&&e.code)||'erreur')+'. Vérifie ta connexion et la configuration.')};
+  const snapDoc=s=>({id:s.id,exists:s.exists(),data:()=>s.data()});
+  const snapCol=s=>({docs:s.docs.map(x=>({id:x.id,data:()=>x.data()}))});
+  // Interface simple utilisée par l'application : doc(path) et collection(path)
+  const api={
+    doc:p=>{const r=doc(store,p);return{
+      set:d=>setDoc(r,clean(d)),
+      update:d=>setDoc(r,clean(d),{merge:true}),
+      delete:()=>deleteDoc(r),
+      onSnapshot:(ok,err)=>onSnapshot(r,s=>ok(snapDoc(s)),e=>{fail(e);err&&err(e)})}},
+    collection:p=>{const c=collection(store,p);return{
+      doc:id=>api.doc(p+'/'+id),
+      get:()=>getDocs(c).then(snapCol),
+      onSnapshot:(ok,err)=>onSnapshot(c,s=>ok(snapCol(s)),e=>{fail(e);err&&err(e)})}}
+  };
+  window.__fbOk(api);
+}catch(e){console.error(e);fbWarn(e.message||'Firebase indisponible.');window.__fbOk(null)}
+</script>
+<script>
 let P=['Valerian','Thomas','Sebastien','Matthieu','Mickael','Luidji','Damien'];
 const COL=['#e8590c','#1c7ed6','#2f9e44','#ae3ec9','#f08c00','#d6336c','#0b7285','#495057','#5c940d','#862e9c','#c92a2a','#1864ab'];
 const PTS=[15,12,10,7,5,3,0];
@@ -286,9 +328,8 @@ function gate(force){document.body.classList.remove('tbl');drawTb();const $=id=>
 function codes(){if(!ADM)return'<div class="card">Réservé à l\'administrateur.</div>';const cm=CMSG;CMSG='';
  return meBn()+`<div class="card"><h2>Gestion des codes</h2><p class="note">Codes à 4 chiffres des joueurs. « Modifier » remplace le code. « Supprimer » déconnecte le joueur : il devra refaire sa première connexion et créer un nouveau code.</p><div class="sc"><table><tr><th>Joueur</th><th>Code</th><th>Nouveau code</th><th></th></tr>${P.map((p,i)=>{const c=CODES[String(i)];return `<tr><td>${pn(i)}${AR.has(i)?' <span class="tag">(archivé)</span>':''}</td><td>${c!==undefined?'<b>'+c+'</b>':'<span class="tag">pas encore créé</span>'}</td><td><input class="cn" id="cn${i}" inputmode="numeric" maxlength="4" pattern="[0-9]*" style="width:80px"></td><td><button class="btn p" data-cs="${i}">Modifier</button>${c!==undefined?` <button class="btn" data-cd="${i}">Supprimer</button>`:''}</td></tr>`}).join('')}</table></div><p class="tag">${cm}</p></div>
  <div class="card"><h2>Code administrateur</h2><p>Code actuel : <b>${ADMCODE}</b></p><div class="ctl"><label>Nouveau code (4 à 20 lettres ou chiffres)<input id="ac" maxlength="20" autocomplete="off"></label><button class="btn p" id="acs">Enregistrer</button></div><p class="note">Ce code donne tous les droits : ne le partage pas.</p></div>`}
-function versions(){if(!ADM)return'<div class="card">Réservé à l\'administrateur.</div>';
- const L=[['2.0','Annonces supprimées','https://claude.ai/artifact/ATubaC97fH5PtaBfxvjLS1'],['1.9','Mode Jeux (ex-TV) avec compteur, mode Mobile supprimé','https://claude.ai/artifact/JVEiJc9AkzgZzo3BdREC8f'],['1.8','Modes PC/Mobile/TV, saisons, annonces, pronostic, chrono','https://claude.ai/artifact/BMCG3hpoQ9JfNjjDBW8CA6'],['1.7','Interrupteur PC/Jeu, distribution en écran géant','https://claude.ai/artifact/9gSLpnMwp3Xx9gJL6CstLA'],['1.6','Mode mobile, écran géant, fin de partie animée, emojis','https://claude.ai/artifact/PuhxzGx32nAB5CydEin29m'],['1.5','Droits admin, interface mobile de la Partie, podium dans Résumé','https://claude.ai/artifact/98HZpvZSVJCtvPaFTdQEs3'],['1.4','Bouton Valider, témoin écran allumé','https://claude.ai/artifact/6Dxoc1oDWCGMTE6n3o6W4p'],['1.3','Accueil PapayooLand, codes par joueur, gestion des codes','https://claude.ai/artifact/GGvdci6AXaaFCAyzpxBe7E'],['1.2','Déconnexion, thème, annuler une manche, sauvegarde JSON','https://claude.ai/artifact/LWPfofqcKyNNmn9nqePnB1'],['1.1','Code d\'accès, menu des cartes retiré','https://claude.ai/artifact/3VuETHWhcSuaLw8uniSVLh'],['1.0','Version d\'origine','https://claude.ai/artifact/S92a5qahRgCK4ip5PHAadP']];
- return meBn()+`<div class="card"><h2>Versions</h2><p>Version actuelle : <b>v${VER}</b> (codes par joueur, accueil PapayooLand).</p><p class="note">Ce sont des copies du code des anciennes versions. Leur base est vide : elles ne contiennent pas tes parties. Pour revenir à l'une d'elles sur ce lien, demande-le à Claude : tes parties sont conservées.</p>${L.map(([v,d,u])=>`<p><a href="${u}" target="_blank" rel="noopener"><b>v${v}</b></a> : ${d}</p>`).join('')}</div>`}
+function versions(){if(!ADM)return'<div class="card">Réservé à l\'administrateur.</div>';const cm=CMSG;
+ return meBn()+`<div class="card"><h2>Données et sauvegardes</h2><p class="note">Version <b>v${VER}</b>, hébergée sur GitHub Pages avec Firebase Firestore. Exporte régulièrement les données pour avoir une copie.</p><p><button class="btn p" id="dbx">⬇️ Exporter toutes les données (JSON)</button></p><hr><p class="note">Importer une sauvegarde : fichier exporté ici, ou fichier de migration depuis Claude. Un document qui existe déjà est remplacé.</p><p><input type="file" id="dbf" accept="application/json,.json"> <button class="btn" id="dbi">⬆️ Importer</button></p><p id="dbm" class="tag">${cm}</p></div>`}
 const mobBar=()=>`<div class="card" style="padding:8px 12px"><div class="seg">${[['pc','💻 Mode PC'],['jeu','🎮 Mode Jeux']].map(([k,l])=>`<button class="btn ${MODE==k?'p':''}" data-md="${k}">${l}</button>`).join('')}</div></div>`;
 const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),cl2=x=>String(x||'').replace(/[<>&"]/g,'').trim().slice(0,200);
 const setMode=m=>{MODE=m;TV=m=='jeu';lss('pp_mode',m)};
@@ -412,7 +453,7 @@ function saisie(){const today=tdy();
  return delBn()+(ADM&&!editId&&!FORG?'<div class="card"><button class="btn p" id="fg">+ Ajouter une partie oubliée</button></div>':'')+form+`<div class="card"><h2>Dernières parties</h2><div class="sc"><table><tr><th>Date</th>${P.map(p=>`<th>${p.slice(0,4)}.</th>`).join('')}<th></th></tr>
  ${rec.map(([d,s,id])=>`<tr><td>${dt(d)}</td>${s.map(v=>`<td>${v??''}</td>`).join('')}<td>${ADM?`<button class="btn" data-ed="${id}">Modifier</button> ${ADM?`<button class="btn" data-del="${id}" data-d="${d}">Supprimer</button>`:''}`:''}</td></tr>`).join('')}</table></div></div>
  <div class="card"><h2>Exporter vers Excel</h2><p class="note">Fichier CSV avec les colonnes Semaine, Date et les 7 joueurs, comme dans ton onglet Scores_Journalier.</p><p><button class="btn" id="exp">Télécharger le CSV</button> <button class="btn" id="expj">Sauvegarde complète (JSON)</button> <span id="em" class="tag"></span></p></div>`}
-const TABS={rs:['Résumé',resume],so:['Partie',soiree],cl:['Classement Général',cl],jo:['Fiches joueurs',()=>fiche()+vitrine()],su:['Succès',succes],re:['Résumé à partager',recap],ev:['Évolution',evo],du:['Duels',duel],st:['Faits marquants',faits],sa:['Historique',saisie],gp:['Groupe',groupe],lg:['Journal',journal],cd:['Gestion des codes',codes],vv:['Versions',versions],sn:['Saisons',saisons],pr:['Prévisions',pron]};
+const TABS={rs:['Résumé',resume],so:['Partie',soiree],cl:['Classement Général',cl],jo:['Fiches joueurs',()=>fiche()+vitrine()],su:['Succès',succes],re:['Résumé à partager',recap],ev:['Évolution',evo],du:['Duels',duel],st:['Faits marquants',faits],sa:['Historique',saisie],gp:['Groupe',groupe],lg:['Journal',journal],cd:['Gestion des codes',codes],vv:['Données',versions],sn:['Saisons',saisons],pr:['Prévisions',pron]};
 const GR=[['🎲','Partie',['so']],['🏆','Classement',['rs','cl']],['👤','Joueurs',['jo','du','su']],['📊','Stats',['ev','st','pr','re']],['⚙️','Options',['sa','gp','lg','cd','vv','sn']]];
 function render(){const g=G();
  if(!NODB&&(!UL||!CL||!AL)){gate();return}
@@ -443,8 +484,11 @@ function render(){const g=G();
  if($('fg'))$('fg').onclick=()=>{FORG=true;render()};
  if($('cx'))$('cx').onclick=()=>{FORG=false;editId=null;editD=null;vals={};render()};
  if($('un'))$('un').onclick=async()=>{try{await db.doc('games/'+lastAdd).delete();logA('Ajout annulé')}catch(e){}lastAdd=null;render()};;
- if($('expj'))$('expj').onclick=async()=>{try{const dl=await claude.use('downloads');if(!dl){$('em').textContent='Export indisponible ici.';return}await dl.save({filename:'Sauvegarde_Papayoo_'+tdy()+'.json',data:JSON.stringify({version:VER,joueurs:P,archives:[...AR],parties:G().map(([d,s,id])=>({id,d,s}))},null,1)});$('em').textContent='Fichier enregistré.'}catch(e){$('em').textContent='Export impossible.'}};
- if($('exp'))$('exp').onclick=async()=>{try{const dl=await claude.use('downloads');if(!dl){$('em').textContent='Export indisponible ici.';return}
+ const pm=t=>{const e=document.getElementById('dbm');if(e)e.textContent=t};
+ if($('dbx'))$('dbx').onclick=async()=>{try{pm('Export en cours…');const docs={};for(const c of ['games','config','days','log','codes','live']){const q=await db.collection(c).get();q.docs.forEach(x=>{docs[c+'/'+x.id]=x.data()})}dlSave('Papayoo_donnees_'+tdy()+'.json',JSON.stringify({format:'papayoo-firestore-v1',date:tdy(),docs},null,1));CMSG=Object.keys(docs).length+' documents exportés.';pm(CMSG)}catch(e){pm('Export impossible : '+(e.code||e.message))}};
+ if($('dbi'))$('dbi').onclick=async()=>{CMSG='';const f=$('dbf').files[0];if(!f){pm('Choisis un fichier.');return}try{const j=JSON.parse(await f.text());if(j.format!='papayoo-firestore-v1'||!j.docs)throw new Error('Format de fichier inconnu.');const ks=Object.keys(j.docs).filter(k=>/^(games|config|days|log|codes|live)\/[^\/]+$/.test(k));let n=0;for(const k of ks){await db.doc(k).set(j.docs[k]);n++;pm(n+'/'+ks.length+' importés…')}logA('Import de données : '+n+' documents');CMSG=n+' documents importés.';render()}catch(e){pm('Import impossible : '+(e.code||e.message))}};
+ if($('expj'))$('expj').onclick=async()=>{try{const dl={save:o=>dlSave(o.filename,o.data)};if(!dl){$('em').textContent='Export indisponible ici.';return}await dl.save({filename:'Sauvegarde_Papayoo_'+tdy()+'.json',data:JSON.stringify({version:VER,joueurs:P,archives:[...AR],parties:G().map(([d,s,id])=>({id,d,s}))},null,1)});$('em').textContent='Fichier enregistré.'}catch(e){$('em').textContent='Export impossible.'}};
+ if($('exp'))$('exp').onclick=async()=>{try{const dl={save:o=>dlSave(o.filename,o.data)};if(!dl){$('em').textContent='Export indisponible ici.';return}
   const csv='\ufeffSemaine;Date;'+P.join(';')+'\n'+G().map(([d,s])=>[weekOf(d),d.split('-').reverse().join('/'),...s.map(v=>v??'')].join(';')).join('\n');
   await dl.save({filename:'Stats_Papayoo.csv',data:csv});$('em').textContent='Fichier enregistré.'}catch(e){$('em').textContent=e&&e.code=='declined'?'Téléchargement annulé.':'Export impossible.'}};
  if($('add'))$('add').onclick=async()=>{const sc=P.map((_,i)=>{const e=document.querySelector('.s[data-i="'+i+'"]');return e&&e.value!==''?+e.value:null}),d=$('d')?$('d').value:sday;
@@ -487,9 +531,9 @@ function render(){const g=G();
  document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;lastAdd=null;scrollTo(0,0);render()})}
 render();
 (async()=>{try{
- db=await claude.use('db');
- if(!db){status='Base partagée indisponible : ouvre la page depuis claude.ai.';NODB=true;UL=true;render();return}
- try{const u=await claude.use('user');USER=(u&&(u.name||u.displayName||u.email))||'';ISOWN=!!(u&&u.isOwner&&u.isOwner());const c=u&&u.can?u.can('data.write'):null;if(c===false)canW=false}catch(e){}
+ db=await window.fbReady;
+ if(!db){status='Base de données indisponible : vérifie la configuration Firebase.';NODB=true;UL=true;render();return}
+ USER='';ISOWN=false;
  UL=true;
  db.collection('codes').onSnapshot(sn=>{CODES={};sn.docs.forEach(x=>{const d=x.data();if(d&&d.c!=null)CODES[x.id.slice(1)]=String(d.c)});CL=true;render()},()=>{CL=true;render()});
  db.doc('config/saisons').onSnapshot(sn=>{SEAS=sn.exists&&Array.isArray(sn.data().list)?sn.data().list:[];render()},()=>{});
